@@ -1,7 +1,15 @@
+import styles from './page.module.scss';
+
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-     
-    </div>
+    <main className="flex flex-col flex-1 items-center justify-center bg-zinc-500 font-sans">
+      <div className={styles.wrapper}>
+        <h1 className={styles.hero_heading}>Excel Analyzer</h1>
+        <div className={styles.btn_wrapper}>
+          <p className={styles.helper_txt}>Click to import Excel file ➡️</p>
+          <input type="file" className={styles.input} />
+        </div>
+      </div>
+    </main>
   );
 }

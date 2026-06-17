@@ -17,11 +17,20 @@ Click on import and navigate to your file in the os file window;
 
 5. DB Structure:
 
+
+
 6. Endpoints:
+
+Create - /POST
+Read - /GET
+Update - /PUT
+Delete - /DELETE
 
 7. How to export data:
 
 8. Applied approaches:
+
+No unique ids present in the file: making uuid per entity;
 
 9. Repo information:
 Stored on Github;
