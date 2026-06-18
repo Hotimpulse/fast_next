@@ -1,13 +1,16 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
+from api import departments, employees, exports, imports
 from core.config import settings
 from db.database import Base, engine
+
+from models import *
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Nest_Fast_Analyzer",
+    title="Next_Fast_Analyzer",
     description="API to import/export xlsb docs",
     version="0.1.0",
     docs_url="/docs",
@@ -22,11 +25,12 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# Endpoints
-@app.get('/')
-def root():
-    return {"message": "Analyzer backend"}
+# Routes
 
+app.include_router(imports.router)
+app.include_router(employees.router)
+app.include_router(departments.router)
+app.include_router(exports.router)
 
 if __name__ == "__main__":
     import uvicorn

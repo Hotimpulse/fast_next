@@ -1,4 +1,4 @@
-import type { ImportAction, ActionEvent } from './types';
+import type { ImportAction, ActionEvent, Department, Employee, EmployeePayload, ExportAction } from './types';
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 export const WS_URL = API_URL.replace(/^http/, 'ws');
@@ -37,4 +37,27 @@ export const Api = {
     return api<ImportAction>('/imports?async_mode=true', { method: 'POST', body: form });
   },
   importEvents: (id: string) => api<ActionEvent[]>(`/imports/${id}/events`),
+  departments: () => api<Department[]>('/departments'),
+  employees: (query: URLSearchParams) => api<Employee[]>(`/employees?${query}`),
+  createEmployee: (payload: EmployeePayload) =>
+    api<Employee>('/employees', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+  updateEmployee: (id: string, payload: EmployeePayload) =>
+    api<Employee>(`/employees/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+  deleteEmployee: (id: string) => api<void>(`/employees/${id}`, { method: 'DELETE' }),
+  exports: () => api<ExportAction[]>('/exports/history'),
+  export: (id: string) => api<ExportAction>(`/exports/${id}`),
+  startExport: (tables: string[], format: 'xlsx' | 'csv', cutoff?: string) =>
+    api<ExportAction>('/exports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tables, format, cutoff: cutoff || null }),
+    }),
 };

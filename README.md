@@ -1,42 +1,257 @@
-# WHAT THIS IS:
-Next.js frontend with a FastAPI backend that imports and parses Excel files for further analysis; PostgreSQL db;
+# next_fast
 
-# HOW TO RUN AND OTHER INFO
+Приложение для импорта организационных данных из Excel, просмотра и редактирования сотрудников, а также экспорта измененных данных. Фронтенд написан на Next.js и TypeScript, бэкенд - на FastAPI. Основная база данных - PostgreSQL.
 
-1. Start backend:
-In next_fast/backend dir and run 
+## 1. Как запустить бэкенд
 
-2. Start frontend:
-In next_fast/frontend run ```pnpm install```
+Перейдите в папку бэкенда:
 
-3. Needed env variables:
-None;
+```powershell
+cd backend
+```
 
-4. How to import a file:
-Click on import and navigate to your file in the os file window;
+Установите зависимости удобным для вас способом. Проект использует `pyproject.toml`; если вы работаете через `uv`, можно выполнить:
 
-5. DB Structure:
+```powershell
+uv sync
+```
 
+Запустите API:
 
+```powershell
+uvicorn main:app --reload
+```
 
-6. Endpoints:
+После запуска API будет доступен по адресу:
 
-Create - /POST
-Read - /GET
-Update - /PUT
-Delete - /DELETE
+```text
+http://localhost:8000
+```
 
-7. How to export data:
+Swagger/OpenAPI документация:
 
-8. Applied approaches:
+```text
+http://localhost:8000/docs
+```
 
-No unique ids present in the file: making uuid per entity;
+## 2. Как запустить фронтенд
 
-9. Repo information:
-Stored on Github;
-Link to repo: https://github.com/Hotimpulse/fast_next
+Перейдите в папку фронтенда:
 
-10. How are import/export status exchanges implemented via Websockets?
+```powershell
+cd frontend
+```
 
-11. How is the import/export action history logged and where is it stored?
+Установите зависимости:
 
+```powershell
+pnpm install
+```
+
+Запустите приложение:
+
+```powershell
+pnpm dev
+```
+
+Фронтенд будет доступен по адресу:
+
+```text
+http://localhost:3000
+```
+
+## 3. Переменные окружения
+
+Для бэкенда создайте файл `backend/.env` на основе `backend/.env.example`.
+
+Основные переменные:
+
+```text
+DATABASE_URL=postgresql+psycopg://postgres:your_password@localhost:5432/your_db_name
+ALLOWED_ORIGINS=http://localhost:3000
+```
+
+`DATABASE_URL` указывает строку подключения к PostgreSQL. `ALLOWED_ORIGINS` нужен для CORS, чтобы Next.js мог обращаться к FastAPI.
+
+Для фронтенда можно указать адрес API:
+
+```text
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+Если переменная не задана, фронтенд использует `http://localhost:8000`.
+
+## 4. Как импортировать файл
+
+Откройте страницу:
+
+```text
+http://localhost:3000/import
+```
+
+Выберите исходный Excel-файл из папки `spec` и нажмите кнопку загрузки. Поддерживаются `.xlsb`, `.xlsx` и `.xlsm`.
+
+Бэкенд читает предоставленный файл без ручного изменения. В текущем файле:
+
+- используется первый лист;
+- строка 1 содержит метаданные и дату актуальности;
+- строка 2 содержит заголовки;
+- строка 3 содержит техническую нумерацию;
+- данные начинаются со строки 4.
+
+Ошибки отдельных строк не прерывают весь импорт. Такие строки записываются в результат импорта как ошибки, а корректные строки сохраняются в базу.
+
+## 5. Структура данных
+
+В файле нет стабильных уникальных идентификаторов, поэтому в базе используются UUID.
+
+Основные сущности:
+
+- `people` - сотрудники и руководители по ФИО.
+- `organization_units` - департаменты и отделы. Отдел связан с департаментом через `parent_id`.
+- `employee_assignments` - стабильная карточка назначения сотрудника.
+- `assignment_versions` - версии данных по сотруднику: должность, статус, штат, зарплата, даты и связи.
+- `import_batches` - история импортов и счетчики обработанных строк.
+- `export_operations` - история экспортов и путь к сгенерированному файлу.
+- `operation_events` - события прогресса импорта и экспорта.
+
+Данные из Excel считаются снимком на дату актуальности. Эта дата сохраняется как `source_cutoff_date`.
+
+Фильтр актуальности работает через параметр `cutoff`: версия считается актуальной, если `effective_from <= cutoff`, а `effective_to` отсутствует или больше `cutoff`.
+
+Повторный импорт реализован как простой upsert текущих данных:
+
+- если найден сотрудник с тем же ФИО и должностью, создается новая версия при изменении данных;
+- если данные не изменились, строка считается неизмененной;
+- если сотрудник не найден, создается новая запись.
+
+## 6. Реализованные endpoints
+
+Импорт:
+
+```text
+GET  /imports
+POST /imports?async_mode=true
+GET  /imports/{batch_id}
+GET  /imports/{batch_id}/events
+WS   /imports/{batch_id}/ws
+```
+
+Сотрудники и справочники:
+
+```text
+GET    /employees
+GET    /employees/{assignment_id}
+POST   /employees
+PATCH  /employees/{assignment_id}
+DELETE /employees/{assignment_id}
+GET    /departments
+```
+
+Фильтры сотрудников:
+
+```text
+GET /employees?search=иван&department_id=<uuid>&status=Работает&cutoff=2025-02-01&limit=200&offset=0
+```
+
+Экспорт:
+
+```text
+GET  /exports
+POST /exports
+GET  /exports/history
+GET  /exports/{operation_id}
+GET  /exports/{operation_id}/events
+GET  /exports/{operation_id}/download
+WS   /exports/{operation_id}/ws
+```
+
+## 7. Как экспортировать данные
+
+Откройте страницу:
+
+```text
+http://localhost:3000/export
+```
+
+Выберите секции для экспорта, формат и при необходимости дату `cutoff`.
+
+Поддерживаемые секции:
+
+- `employees`
+- `departments`
+- `people`
+- `assignments`
+- `import_rows`
+- `data_quality_issues`
+
+Форматы:
+
+- `xlsx` - один файл Excel, каждая секция на отдельном листе;
+- `csv` - ZIP-архив, внутри которого отдельный CSV-файл для каждой секции.
+
+Экспорт включает данные, которые были изменены пользователем после импорта.
+
+## 8. Решения и допущения
+
+Основные решения:
+
+- UUID используются как внутренние идентификаторы, потому что в исходном Excel нет надежных ID.
+- Департаменты и отделы хранятся в одной таблице `organization_units`.
+- Руководитель хранится как запись в `people`, так же как обычный сотрудник.
+- История изменения сотрудника хранится через `assignment_versions`.
+- Повторный импорт не удаляет старые данные, а обновляет текущую версию или создает новую.
+- Для CSV-экспорта нескольких таблиц используется ZIP-архив, потому что один CSV не может корректно хранить несколько таблиц.
+
+## 9. Репозиторий
+
+Git-система: GitHub.
+
+Репозиторий:
+
+```text
+https://github.com/Hotimpulse/fast_next
+```
+
+## 10. Обмен статусами через WebSocket
+
+Импорт и экспорт запускаются через HTTP-запросы. После запуска фронтенд открывает WebSocket:
+
+```text
+ws://localhost:8000/imports/{batch_id}/ws
+ws://localhost:8000/exports/{operation_id}/ws
+```
+
+Бэкенд сохраняет события в таблицу `operation_events` и отправляет их клиенту. Формат сообщения:
+
+```json
+{
+  "id": 1,
+  "action_type": "import",
+  "level": "info",
+  "status": "running",
+  "message": "Processed row 1 of 18.",
+  "processed_rows": 1,
+  "total_rows": 18,
+  "payload": {},
+  "created_at": "2026-06-18T12:00:00"
+}
+```
+
+Статусы операций:
+
+- `pending`
+- `running`
+- `completed`
+- `completed_with_warnings`
+- `failed`
+
+## 11. Где хранится история импорта и экспорта
+
+История не хранится только во фронтенде. Она сохраняется в базе данных.
+
+Для импорта используется таблица `import_batches`. В ней хранятся файл, статус, количество найденных и обработанных строк, количество добавленных, обновленных и пропущенных записей, ошибки и предупреждения.
+
+Для экспорта используется таблица `export_operations`. В ней хранятся выбранные секции, формат, статус, путь к готовому файлу и время выполнения.
+
+Подробные события прогресса хранятся в таблице `operation_events`. Благодаря этому история остается доступной после обновления страницы.

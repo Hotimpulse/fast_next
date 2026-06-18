@@ -4,7 +4,7 @@ import { Api, WS_URL } from '@/lib/api';
 import { ImportAction, ActionEvent } from '@/lib/types';
 import { SubmitEvent, useEffect, useState } from 'react';
 
-import styles from './importPage.module.scss';
+import styles from '../formStyles.module.scss';
 import { ErrorBox } from '@/components/ErrorBox';
 import { Progress } from '@/components/Progress';
 
