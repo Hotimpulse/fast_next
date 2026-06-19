@@ -1,32 +1,21 @@
 # Frontend
 
-Next.js приложение для загрузки Excel-файла, просмотра сотрудников, редактирования записей, запуска экспорта и отображения истории операций.
+Next.js приложение для Excel Analyzer: импорт Excel, просмотр и редактирование сотрудников, справочники, экспорт и история операций.
 
 ## Запуск
 
-Из папки `frontend` установите зависимости:
+Из папки `frontend`:
 
 ```powershell
 pnpm install
-```
-
-Запустите dev-сервер:
-
-```powershell
 pnpm dev
 ```
 
-Приложение будет доступно по адресу:
-
-```text
-http://localhost:3000
-```
+Приложение будет доступно на `http://localhost:3000`.
 
 ## Переменные окружения
 
 Фронтенд обращается к FastAPI через `NEXT_PUBLIC_API_URL`.
-
-Пример:
 
 ```text
 NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -34,27 +23,52 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 Если переменная не задана, используется `http://localhost:8000`.
 
-## Страницы
+## Скрипты
 
-- `/import` - загрузка Excel-файла, прогресс импорта и история импортов.
-- `/employees` - таблица сотрудников, поиск, фильтры, добавление, редактирование и удаление.
-- `/export` - выбор секций для экспорта, формат файла, прогресс и история экспортов.
+```powershell
+pnpm dev
+pnpm lint
+pnpm build
+pnpm start
+```
 
-## Связь с backend
+## Основные страницы
 
-Основные HTTP endpoints:
+- `/` - главная страница Excel Analyzer с импортом и кнопкой очистки базы.
+- `/import` - загрузка `.xlsb`, `.xlsx`, `.xlsm`, прогресс импорта и история импортов.
+- `/employees` - форма добавления сотрудника, справочники, таблица сотрудников, фильтры, сортировка и пагинация. Обязательные поля показываются через `ErrorBox`; дата увольнения необязательна, зарплата обязательна.
+- `/employees/{assignment_id}` - карточка сотрудника;
+- `/export` - выбор секций, формат `xlsx` или `csv`, прогресс и история экспортов.
+
+## Архитектурные допущения в UI
+
+- ФИО не считается уникальным идентификатором. В таблицах и экспорте могут быть разные люди с одинаковым ФИО.
+- Backend различает людей при импорте по `ФИО сотрудника + Дата приема на работу`, потому что в исходном Excel нет стабильного внешнего ID.
+- `/employees` работает с назначениями сотрудников, а не с уникальными ФИО.
+- Экспорт `people` содержит записи людей с контекстом назначения, чтобы одинаковые ФИО можно было различить.
+- Экспорт `employees` содержит активных штатных сотрудников: `Работает` и `Штатный сотрудник`.
+
+## Backend API
+
+Основные HTTP-запросы:
 
 ```text
 GET  /imports
 POST /imports?async_mode=true
 GET  /employees
+GET  /employees/{assignment_id}
 POST /employees
-PATCH /employees/{id}
-DELETE /employees/{id}
+PATCH /employees/{assignment_id}
+DELETE /employees/{assignment_id}
 GET  /departments
+GET  /references
+POST /references
+PATCH /references/rename
+DELETE /references
 POST /exports
 GET  /exports/history
-GET  /exports/{id}/download
+GET  /exports/{operation_id}/download
+POST /admin/clear-db
 ```
 
 Прогресс импорта и экспорта приходит через WebSocket:
@@ -64,16 +78,13 @@ ws://localhost:8000/imports/{id}/ws
 ws://localhost:8000/exports/{id}/ws
 ```
 
+## UI
+
+Проект использует SCSS modules и `lucide-react` для SVG-иконок.
+
 ## Сборка
 
-Проверка production-сборки:
-
 ```powershell
+pnpm lint
 pnpm build
-```
-
-Запуск собранного приложения:
-
-```powershell
-pnpm start
 ```

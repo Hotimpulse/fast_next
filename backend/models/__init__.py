@@ -6,6 +6,7 @@ from models.employee import (
     OperationEvent,
     OrganizationUnit,
     Person,
+    ReferenceCatalog,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "OperationEvent",
     "OrganizationUnit",
     "Person",
+    "ReferenceCatalog",
 ]

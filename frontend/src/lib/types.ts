@@ -50,12 +50,34 @@ export interface ExportAction {
   download_url: string | null;
 }
 
+export interface ClearDatabaseResult {
+  deleted: Record<string, number>;
+  total_deleted: number;
+}
+
 export interface Department {
   id: string;
   parent_id: string | null;
   unit_type: 'department' | 'division';
   name: string;
   is_active: boolean;
+}
+
+export type ReferenceField = 'department_name' | 'division_name' | 'position_name' | 'manager_name';
+
+export interface ReferenceValue {
+  field: ReferenceField;
+  value: string;
+  total_count: number;
+  active_count: number;
+}
+
+export interface ReferenceMutationResult {
+  field: ReferenceField;
+  old_value: string;
+  new_value: string | null;
+  updated_rows: number;
+  removed_items: number;
 }
 
 export interface Employee {

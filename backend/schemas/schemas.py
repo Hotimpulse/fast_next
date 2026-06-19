@@ -21,6 +21,11 @@ class ActionEventRead(ORMModel):
     created_at: datetime
 
 
+class ClearDatabaseResult(BaseModel):
+    deleted: dict[str, int]
+    total_deleted: int
+
+
 class ImportBatchRead(ORMModel):
     id: str
     original_filename: str
@@ -54,11 +59,58 @@ class DepartmentRead(ORMModel):
     parent_id: str | None
     unit_type: str
     name: str
-    display_name: str | None
-    source_name: str | None
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class ReferenceValue(BaseModel):
+    field: Literal["department_name", "division_name", "position_name", "manager_name"]
+    value: str
+    total_count: int
+    active_count: int
+
+
+class ReferenceRenameRequest(BaseModel):
+    field: Literal["department_name", "division_name", "position_name", "manager_name"]
+    old_value: str = Field(min_length=1, max_length=300)
+    new_value: str = Field(min_length=1, max_length=300)
+
+    @field_validator("old_value", "new_value")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        return " ".join(value.split())
+
+
+class ReferenceCreateRequest(BaseModel):
+    field: Literal["department_name", "division_name", "position_name", "manager_name"]
+    value: str = Field(min_length=1, max_length=300)
+    parent_value: str | None = Field(default=None, max_length=300)
+
+    @field_validator("value", "parent_value")
+    @classmethod
+    def strip_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return " ".join(value.split()) or None
+
+
+class ReferenceRemoveRequest(BaseModel):
+    field: Literal["department_name", "division_name", "position_name", "manager_name"]
+    value: str = Field(min_length=1, max_length=300)
+
+    @field_validator("value")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        return " ".join(value.split())
+
+
+class ReferenceMutationResult(BaseModel):
+    field: str
+    old_value: str
+    new_value: str | None = None
+    updated_rows: int
+    removed_items: int
 
 
 class EmployeeRead(BaseModel):
@@ -93,7 +145,7 @@ class EmployeeCreate(BaseModel):
     employment_type: str = Field(default="Штатный сотрудник", min_length=1, max_length=100)
     hire_date: date
     termination_date: date | None = None
-    salary: Decimal | None = Field(default=None, ge=0)
+    salary: Decimal = Field(ge=0)
     effective_from: date | None = None
 
     @field_validator("full_name", "department_name", "division_name", "position_name", "manager_name", "status", "employment_type")
@@ -107,7 +159,7 @@ class EmployeeCreate(BaseModel):
     @model_validator(mode="after")
     def validate_dates(self) -> "EmployeeCreate":
         if self.termination_date and self.termination_date < self.hire_date:
-            raise ValueError("termination_date cannot be earlier than hire_date")
+            raise ValueError("Дата увольнения не может быть раньше даты приема на работу.")
         return self
 
 
@@ -131,12 +183,15 @@ class EmployeePatch(BaseModel):
             return None
         return " ".join(value.split()) or None
 
+    @model_validator(mode="after")
+    def validate_salary(self) -> "EmployeePatch":
+        if "salary" in self.model_fields_set and self.salary is None:
+            raise ValueError("Зарплата обязательна.")
+        return self
+
 
 class ExportRequest(BaseModel):
-    tables: list[Literal["employees", "departments", "people", "assignments", "import_rows", "data_quality_issues"]] = [
-        "employees",
-        "departments",
-    ]
+    tables: list[Literal["employees", "departments", "people", "assignments"]] = ["employees", "departments"]
     format: Literal["xlsx", "csv"] = "xlsx"
     cutoff: date | None = None
 

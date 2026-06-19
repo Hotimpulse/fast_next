@@ -1,14 +1,16 @@
 import styles from './page.module.scss';
+import { ImportWorkspace } from '@/components/ImportWorkspace';
+import { ClearDbButton } from '@/components/ClearDbButton';
 
 export default function Home() {
   return (
-    <main className="flex flex-col flex-1 items-center justify-center bg-zinc-500 font-sans">
+    <main className={styles.main}>
       <div className={styles.wrapper}>
         <h1 className={styles.hero_heading}>Excel Analyzer</h1>
-        <div className={styles.btn_wrapper}>
-          <p className={styles.helper_txt}>Click to import Excel file ➡️</p>
-          <input type="file" className={styles.input} />
-        </div>
+        <ClearDbButton />
+      </div>
+      <div className={styles.importArea}>
+        <ImportWorkspace heading="Импортировать Excel файл" />
       </div>
     </main>
   );

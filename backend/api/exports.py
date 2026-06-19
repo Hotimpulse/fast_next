@@ -45,7 +45,7 @@ async def export_now(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not operation.file_path:
-        raise HTTPException(status_code=500, detail="Export did not produce a file.")
+        raise HTTPException(status_code=500, detail="Ошибка при экспорте файла на сервере.")
     return FileResponse(path=operation.file_path, filename=Path(operation.file_path).name)
 
 
@@ -73,7 +73,7 @@ def export_history(db: Session = Depends(get_db)) -> list[ExportOperationRead]:
 def get_export(operation_id: str, db: Session = Depends(get_db)) -> ExportOperationRead:
     operation = db.get(ExportOperation, operation_id)
     if not operation:
-        raise HTTPException(status_code=404, detail="Export operation not found.")
+        raise HTTPException(status_code=404, detail="Ошибка при экспорте файла на клиенте.")
     return _operation_read(operation)
 
 
@@ -91,7 +91,7 @@ def get_export_events(operation_id: str, db: Session = Depends(get_db)) -> list[
 def download_export(operation_id: str, db: Session = Depends(get_db)) -> FileResponse:
     operation = db.get(ExportOperation, operation_id)
     if not operation or not operation.file_path:
-        raise HTTPException(status_code=404, detail="Export file not found.")
+        raise HTTPException(status_code=404, detail="Файл экспорта не найден.")
     return FileResponse(path=operation.file_path, filename=Path(operation.file_path).name)
 
 

@@ -3,7 +3,7 @@ create extension if not exists pgcrypto;
 create table if not exists people (
     id varchar primary key default gen_random_uuid()::text,
     full_name varchar(300) not null,
-    created_at timestamp without time zone not null default now()
+    created_at timestamp with time zone not null default now()
 );
 
 create index if not exists ix_people_full_name
@@ -14,11 +14,9 @@ create table if not exists organization_units (
     parent_id varchar null references organization_units(id) on delete set null,
     unit_type varchar(100) not null,
     name varchar(300) not null,
-    display_name varchar(300) null,
-    source_name varchar(300) null,
     is_active boolean not null default true,
-    created_at timestamp without time zone not null default now(),
-    updated_at timestamp without time zone not null default now(),
+    created_at timestamp with time zone not null default now(),
+    updated_at timestamp with time zone not null default now(),
     constraint ck_organization_units_type
         check (unit_type in ('department', 'division'))
 );
@@ -36,7 +34,7 @@ create table if not exists employee_assignments (
     id varchar primary key default gen_random_uuid()::text,
     person_id varchar not null references people(id) on delete restrict,
     is_deleted boolean not null default false,
-    created_at timestamp without time zone not null default now()
+    created_at timestamp with time zone not null default now()
 );
 
 create index if not exists ix_employee_assignments_person_id
@@ -56,12 +54,12 @@ create table if not exists assignment_versions (
     employment_type varchar(100) not null,
     hire_date date not null,
     termination_date date null,
-    salary numeric(12, 2) null,
+    salary numeric(12, 2) not null,
     effective_from date not null,
     effective_to date null,
     is_current boolean not null default true,
     constraint ck_assignment_versions_salary
-        check (salary is null or salary >= 0),
+        check (salary >= 0),
     constraint ck_assignment_versions_hire_termination
         check (termination_date is null or termination_date >= hire_date),
     constraint ck_assignment_versions_effective_range
@@ -107,9 +105,9 @@ create table if not exists import_batches (
     warning_count integer not null default 0,
     error_count integer not null default 0,
     options jsonb not null default '{}'::jsonb,
-    started_at timestamp without time zone null,
-    completed_at timestamp without time zone null,
-    created_at timestamp without time zone not null default now(),
+    started_at timestamp with time zone null,
+    completed_at timestamp with time zone null,
+    created_at timestamp with time zone not null default now(),
     created_by varchar(200) null,
     constraint ck_import_batches_status
         check (status in ('pending', 'running', 'completed', 'completed_with_warnings', 'failed')),
@@ -140,9 +138,9 @@ create table if not exists export_operations (
     file_path varchar(1000) null,
     total_rows integer not null default 0,
     processed_rows integer not null default 0,
-    started_at timestamp without time zone null,
-    completed_at timestamp without time zone null,
-    created_at timestamp without time zone not null default now(),
+    started_at timestamp with time zone null,
+    completed_at timestamp with time zone null,
+    created_at timestamp with time zone not null default now(),
     constraint ck_export_operations_status
         check (status in ('pending', 'running', 'completed', 'completed_with_warnings', 'failed')),
     constraint ck_export_operations_counts
@@ -165,7 +163,7 @@ create table if not exists operation_events (
     payload jsonb not null default '{}'::jsonb,
     processed_rows integer null,
     total_rows integer null,
-    created_at timestamp without time zone not null default now(),
+    created_at timestamp with time zone not null default now(),
     constraint ck_operation_events_action_type
         check (action_type in ('import', 'export')),
     constraint ck_operation_events_level
@@ -184,3 +182,23 @@ create index if not exists ix_operation_events_operation
 
 create index if not exists ix_operation_events_created_at
     on operation_events (created_at);
+
+create table if not exists reference_catalog (
+    id varchar primary key default gen_random_uuid()::text,
+    field varchar(100) not null,
+    value varchar(300) not null,
+    is_active boolean not null default true,
+    created_at timestamp with time zone not null default now(),
+    updated_at timestamp with time zone not null default now(),
+    constraint ck_reference_catalog_field
+        check (field in ('department_name', 'division_name', 'position_name', 'manager_name'))
+);
+
+create index if not exists ix_reference_catalog_field
+    on reference_catalog (field);
+
+create index if not exists ix_reference_catalog_value
+    on reference_catalog (value);
+
+create unique index if not exists ux_reference_catalog_field_value
+    on reference_catalog (field, value);

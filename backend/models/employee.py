@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, JSON
@@ -10,6 +10,11 @@ from db.database import Base
 def uuid_str() -> str:
     return str(uuid.uuid4())
 
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
 class OrganizationUnit(Base):
     __tablename__ = "organization_units"
 
@@ -17,11 +22,9 @@ class OrganizationUnit(Base):
     parent_id: Mapped[str | None] = mapped_column(ForeignKey("organization_units.id"), nullable=True)
     unit_type: Mapped[str] = mapped_column(String(100)) # department | division
     name: Mapped[str] = mapped_column(String(300), index=True)
-    display_name: Mapped[str | None] = mapped_column(String(300))
-    source_name: Mapped[str | None] = mapped_column(String(300))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
 
 class Person(Base):
@@ -29,7 +32,7 @@ class Person(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=uuid_str)
     full_name: Mapped[str] = mapped_column(String(300), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
 class EmployeeAssignment(Base):
@@ -38,7 +41,7 @@ class EmployeeAssignment(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=uuid_str)
     person_id: Mapped[str] = mapped_column(ForeignKey("people.id"))
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     person = relationship("Person")
     versions = relationship("AssignmentVersion", cascade="all, delete-orphan")
@@ -58,7 +61,7 @@ class AssignmentVersion(Base):
     employment_type: Mapped[str] = mapped_column(String(100))
     hire_date: Mapped[date] = mapped_column(Date)
     termination_date: Mapped[date | None] = mapped_column(Date)
-    salary: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    salary: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
 
     effective_from: Mapped[date] = mapped_column(Date)
     effective_to: Mapped[date | None] = mapped_column(Date)
@@ -88,9 +91,9 @@ class ImportBatch(Base):
     warning_count: Mapped[int] = mapped_column(Integer, default=0)
     error_count: Mapped[int] = mapped_column(Integer, default=0)
     options: Mapped[dict] = mapped_column(JSON, default=dict)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     created_by: Mapped[str | None] = mapped_column(String(200))
 
 class ExportOperation(Base):
@@ -104,9 +107,9 @@ class ExportOperation(Base):
     file_path: Mapped[str | None] = mapped_column(String(1000))
     total_rows: Mapped[int] = mapped_column(Integer, default=0)
     processed_rows: Mapped[int] = mapped_column(Integer, default=0)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
 class OperationEvent(Base):
@@ -121,4 +124,15 @@ class OperationEvent(Base):
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
     processed_rows: Mapped[int | None] = mapped_column(Integer)
     total_rows: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ReferenceCatalog(Base):
+    __tablename__ = "reference_catalog"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uuid_str)
+    field: Mapped[str] = mapped_column(String(100), index=True)
+    value: Mapped[str] = mapped_column(String(300), index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)

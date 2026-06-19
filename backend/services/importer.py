@@ -1,6 +1,6 @@
 import hashlib
 import shutil
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -33,7 +33,7 @@ HEADER_MAP = {
 
 
 def _now() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(UTC)
 
 
 def _clean(value: Any) -> Any:
@@ -59,7 +59,7 @@ def _date(value: Any) -> date | None:
                 return datetime.strptime(value, fmt).date()
             except ValueError:
                 continue
-        raise ValueError(f"Invalid date value: {value}")
+        raise ValueError(f"Неверный формат данных: {value}")
     return None
 
 
@@ -70,7 +70,7 @@ def _decimal(value: Any) -> Decimal | None:
     try:
         return Decimal(str(value))
     except (InvalidOperation, ValueError) as exc:
-        raise ValueError("Invalid salary value.") from exc
+        raise ValueError("Неверный формат данных.") from exc
 
 
 def _record_event(
@@ -101,7 +101,7 @@ def _record_event(
 def save_upload(file: UploadFile) -> tuple[Path, str]:
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
     suffix = Path(file.filename or "upload.xlsb").suffix
-    stored_path = STORAGE_DIR / f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}{suffix}"
+    stored_path = STORAGE_DIR / f"{datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')}{suffix}"
 
     digest = hashlib.sha256()
     file.file.seek(0)
@@ -133,7 +133,7 @@ def create_batch(
     db.add(batch)
     db.commit()
     db.refresh(batch)
-    _record_event(db, batch=batch, status="pending", message="Import queued.")
+    _record_event(db, batch=batch, status="pending", message="Импорт в очереди.")
     return batch
 
 
@@ -169,7 +169,7 @@ def _find_current_assignment(db: Session, payload: EmployeeCreate) -> str | None
         .filter(EmployeeAssignment.is_deleted.is_(False))
         .filter(AssignmentVersion.is_current.is_(True))
         .filter(Person.full_name == payload.full_name)
-        .filter(AssignmentVersion.position_name == payload.position_name)
+        .filter(AssignmentVersion.hire_date == payload.hire_date)
         .first()
     )
     return row.id if row else None
@@ -190,6 +190,7 @@ def _is_unchanged(db: Session, assignment_id: str, payload: EmployeeCreate) -> b
         department_name == payload.department_name
         and division_name == payload.division_name
         and manager_name == payload.manager_name
+        and version.position_name == payload.position_name
         and version.status == payload.status
         and version.employment_type == payload.employment_type
         and version.hire_date == payload.hire_date
@@ -201,20 +202,20 @@ def _is_unchanged(db: Session, assignment_id: str, payload: EmployeeCreate) -> b
 async def run_import(db: Session, batch_id: str) -> ImportBatch:
     batch = db.get(ImportBatch, batch_id)
     if not batch:
-        raise RuntimeError("Import batch not found.")
+        raise RuntimeError("Импорт данные не найдены.")
 
     try:
         batch.status = "running"
         batch.started_at = _now()
         db.commit()
-        _record_event(db, batch=batch, status="running", message="Reading workbook.")
+        _record_event(db, batch=batch, status="running", message="Чтение файла.")
 
         workbook = load_workbook(batch.stored_filename)
         sheet_name = workbook.sheet_names[0]
         sheet = workbook.get_sheet_by_name(sheet_name)
         rows = list(sheet.iter_rows())
         if len(rows) <= DATA_START_INDEX:
-            raise RuntimeError("Workbook does not contain data rows.")
+            raise RuntimeError("В файле нет данных.")
 
         headers = rows[HEADER_ROW_INDEX]
         batch.source_sheet_name = sheet_name
@@ -240,9 +241,9 @@ async def run_import(db: Session, batch_id: str) -> ImportBatch:
                     create_employee(db, payload)
                     batch.inserted_rows += 1
             except (ValidationError, ValueError) as exc:
-                _append_issue(batch, "error", f"Row {index}: {exc}")
+                _append_issue(batch, "error", f"Строка {index}: {exc}")
             except Exception as exc:
-                _append_issue(batch, "error", f"Row {index}: {exc}")
+                _append_issue(batch, "error", f"Строка {index}: {exc}")
 
             batch.processed_rows += 1
             db.commit()
@@ -250,7 +251,7 @@ async def run_import(db: Session, batch_id: str) -> ImportBatch:
                 db,
                 batch=batch,
                 status="running",
-                message=f"Processed row {batch.processed_rows} of {batch.total_rows}.",
+                message=f"Обработка {batch.processed_rows} из {batch.total_rows} рядов.",
                 payload={
                     "inserted_rows": batch.inserted_rows,
                     "updated_rows": batch.updated_rows,
@@ -263,7 +264,7 @@ async def run_import(db: Session, batch_id: str) -> ImportBatch:
         batch.status = "completed_with_warnings" if batch.error_count or batch.warning_count else "completed"
         batch.completed_at = _now()
         db.commit()
-        _record_event(db, batch=batch, status=batch.status, message="Import finished.")
+        _record_event(db, batch=batch, status=batch.status, message="Импортирование завершено.")
         db.refresh(batch)
         return batch
     except Exception as exc:

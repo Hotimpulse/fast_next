@@ -1,13 +1,15 @@
 'use client';
 
 import { SubmitEvent, useEffect, useState } from 'react';
+import { Download, FileDown } from 'lucide-react';
 import { Api, downloadUrl, WS_URL } from '@/lib/api';
+import { formatDateTime } from '@/lib/format';
 import type { ExportAction, ActionEvent } from '@/lib/types';
 import { ErrorBox } from '@/components/ErrorBox';
 import { Progress } from '@/components/Progress';
 import styles from '../formStyles.module.scss';
 
-const tableOptions = ['employees', 'departments', 'people', 'assignments', 'import_rows', 'data_quality_issues'];
+const tableOptions = ['employees', 'departments', 'people', 'assignments'];
 
 export default function ExportPage() {
   const [tables, setTables] = useState<string[]>(['employees', 'departments']);
@@ -43,9 +45,19 @@ export default function ExportPage() {
   useEffect(() => {
     if (!currentExportId) return;
 
+    let active = true;
+    let finished = false;
     const socket = new WebSocket(`${WS_URL}/exports/${currentExportId}/ws`);
 
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      socket.close();
+      loadHistory().catch(() => undefined);
+    };
+
     socket.onmessage = (message) => {
+      if (!active) return;
       const next = JSON.parse(message.data) as ActionEvent;
       setAction(next);
       setCurrent((operation) =>
@@ -60,25 +72,18 @@ export default function ExportPage() {
           : operation
       );
       if (['completed', 'failed'].includes(next.status)) {
-        socket.close();
-        loadHistory().catch(() => undefined);
+        finish();
       }
     };
 
-    const timer = window.setInterval(() => {
-      Api.export(currentExportId)
-        .then((operation) => {
-          setCurrent(operation);
-          if (['completed', 'failed'].includes(operation.status)) {
-            window.clearInterval(timer);
-            loadHistory().catch(() => undefined);
-          }
-        })
-        .catch(() => undefined);
-    }, 1500);
+    socket.onerror = () => undefined;
+    socket.onclose = (event) => {
+      if (!active || finished) return;
+      setError(event.wasClean ? 'WebSocket connection closed before export finished.' : 'WebSocket connection failed.');
+    };
 
     return () => {
-      window.clearInterval(timer);
+      active = false;
       socket.close();
     };
   }, [currentExportId]);
@@ -108,7 +113,7 @@ export default function ExportPage() {
   return (
     <main className={`${styles.main} ${styles.stack}`}>
       <section className={styles.panel}>
-        <h1 className={styles.heading}>Export data</h1>
+        <h2 className={styles.heading}>Экспорт данных</h2>
         <form className={styles.formBlock} onSubmit={submit}>
           <div className={styles.checkboxGrid}>
             {tableOptions.map((table) => (
@@ -141,13 +146,15 @@ export default function ExportPage() {
             </label>
             <div className={styles.control}>
               <button className={styles.button} disabled={loading}>
+                <FileDown className={styles.icon} aria-hidden="true" />
                 {loading ? 'Экспортирую' : 'Начать экспорт'}
               </button>
             </div>
             {current?.download_url && current.status === 'completed' && (
               <div className={styles.control}>
-                <span className={styles.labelSpacer}>Download</span>
+                <span className={styles.labelGap}>Download</span>
                 <a className={styles.secondaryButton} href={downloadUrl(current.download_url)}>
+                  <Download className={styles.icon} aria-hidden="true" />
                   Скачать
                 </a>
               </div>
@@ -181,10 +188,11 @@ export default function ExportPage() {
                   <td>{item.filters.tables?.join(', ') ?? item.export_type}</td>
                   <td>{item.filters.format ?? 'xlsx'}</td>
                   <td>{item.status}</td>
-                  <td>{new Date(item.created_at).toLocaleString()}</td>
+                  <td>{formatDateTime(item.created_at)}</td>
                   <td>
                     {item.download_url && (
                       <a className={styles.inlineLink} href={downloadUrl(item.download_url)}>
+                        <Download className={styles.icon} aria-hidden="true" />
                         Скачать
                       </a>
                     )}
@@ -194,7 +202,7 @@ export default function ExportPage() {
               {!history.length && (
                 <tr>
                   <td className={styles.empty} colSpan={5}>
-                    Пока экспортных данных нет.
+                    Данных для экспорта нет.
                   </td>
                 </tr>
               )}

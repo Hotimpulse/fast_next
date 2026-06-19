@@ -1,5 +1,6 @@
 from schemas.schemas import (
     ActionEventRead,
+    ClearDatabaseResult,
     DepartmentRead,
     EmployeeCreate,
     EmployeePatch,
@@ -9,10 +10,16 @@ from schemas.schemas import (
     ExportRequest,
     ImportBatchRead,
     ImportResult,
+    ReferenceCreateRequest,
+    ReferenceMutationResult,
+    ReferenceRemoveRequest,
+    ReferenceRenameRequest,
+    ReferenceValue,
 )
 
 __all__ = [
     "ActionEventRead",
+    "ClearDatabaseResult",
     "DepartmentRead",
     "EmployeeCreate",
     "EmployeePatch",
@@ -22,4 +29,9 @@ __all__ = [
     "ExportRequest",
     "ImportBatchRead",
     "ImportResult",
+    "ReferenceCreateRequest",
+    "ReferenceMutationResult",
+    "ReferenceRemoveRequest",
+    "ReferenceRenameRequest",
+    "ReferenceValue",
 ]

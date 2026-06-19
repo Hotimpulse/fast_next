@@ -28,13 +28,14 @@
   --control-height: 2.5rem;
   --label-height: 1.25rem;
   --field-gap: 0.25rem;
-  --font-sm: 0.875rem;
-  --font-md: 1rem;
-  --font-xl: 1.25rem;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -72,6 +73,11 @@ input[type='checkbox'],
 input[type='file'],
 select {
   cursor: pointer;
+}
+
+button,
+[role='button'] {
+  transition: background-color 0.3s ease-in-out;
 }
 
 button:disabled {

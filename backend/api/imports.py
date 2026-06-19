@@ -35,14 +35,14 @@ def _event_json(event: OperationEvent) -> dict:
 async def import_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    import_mode: Literal["upsert_current", "versioned_upsert"] = "upsert_current",
+    import_mode: Literal["upsert_current"] = "upsert_current",
     async_mode: bool = False,
     db: Session = Depends(get_db),
 ) -> ImportResult:
     if not file.filename:
-        raise HTTPException(status_code=400, detail="A file name is required.")
+        raise HTTPException(status_code=400, detail="У файла должно быть название.")
     if not file.filename.lower().endswith((".xlsb", ".xlsx", ".xlsm")):
-        raise HTTPException(status_code=400, detail="Only .xlsb, .xlsx, and .xlsm files are supported.")
+        raise HTTPException(status_code=400, detail="Поддерживаются только файлы .xlsb, .xlsx и .xlsm.")
 
     stored_path, digest = save_upload(file)
     batch = create_batch(
@@ -70,7 +70,7 @@ def list_imports(db: Session = Depends(get_db)) -> list[ImportBatch]:
 def get_import(batch_id: str, db: Session = Depends(get_db)) -> ImportResult:
     batch = db.get(ImportBatch, batch_id)
     if not batch:
-        raise HTTPException(status_code=404, detail="Import batch not found.")
+        raise HTTPException(status_code=404, detail="Операция импорта не действует.")
     return _result_from_batch(batch)
 
 
