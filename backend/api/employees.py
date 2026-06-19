@@ -14,6 +14,7 @@ router = APIRouter(tags=["employees"])
 def employees(
     search: str | None = None,
     department_id: str | None = None,
+    division_id: str | None = None,
     status_filter: str | None = Query(default=None, alias="status"),
     cutoff: date | None = None,
     offset: int = Query(default=0, ge=0),
@@ -24,6 +25,7 @@ def employees(
         db,
         search=search,
         department_id=department_id,
+        division_id=division_id,
         status=status_filter,
         cutoff=cutoff,
         skip=offset,

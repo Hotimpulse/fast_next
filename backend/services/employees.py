@@ -159,6 +159,7 @@ def list_employees(
     *,
     search: str | None = None,
     department_id: str | None = None,
+    division_id: str | None = None,
     status: str | None = None,
     cutoff: date | None = None,
     skip: int = 0,
@@ -170,6 +171,8 @@ def list_employees(
         query = query.filter(Person.full_name.ilike(f"%{normalize(search)}%"))
     if department_id:
         query = query.filter(AssignmentVersion.department_id == department_id)
+    if division_id:
+        query = query.filter(AssignmentVersion.division_id == division_id)
     if status:
         query = query.filter(AssignmentVersion.status == normalize(status))
 

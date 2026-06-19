@@ -5,6 +5,51 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+EMPLOYEE_TEXT_LABELS = {
+    "full_name": "ФИО сотрудника",
+    "department_name": "Департамент",
+    "division_name": "Отдел",
+    "position_name": "Должность",
+    "manager_name": "Руководитель",
+    "status": "Статус",
+    "employment_type": "Штат",
+}
+REQUIRED_EMPLOYEE_FIELDS = {"full_name", "department_name", "position_name", "status", "employment_type"}
+PERSON_NAME_FIELDS = {"full_name", "manager_name"}
+PERSON_NAME_PUNCTUATION = {" ", "-", "'", "."}
+TEXT_PUNCTUATION = {" ", "-", "'", ".", "(", ")", ",", "&", "/", "+", "#"}
+
+
+def _count_letters(value: str) -> int:
+    return sum(1 for char in value if char.isalpha())
+
+
+def _has_letter_or_digit(value: str) -> bool:
+    return any(char.isalnum() for char in value)
+
+
+def _unsupported_chars(value: str, punctuation: set[str]) -> bool:
+    return any(not (char.isalnum() or char in punctuation) for char in value)
+
+
+def _validate_employee_text_field(field_name: str, value: str | None) -> None:
+    if value is None:
+        return
+
+    label = EMPLOYEE_TEXT_LABELS[field_name]
+    if field_name in PERSON_NAME_FIELDS:
+        if _count_letters(value) < 2:
+            raise ValueError(f"{label} должно содержать имя, а не только символы.")
+        if _unsupported_chars(value, PERSON_NAME_PUNCTUATION):
+            raise ValueError(f"{label} содержит недопустимые символы.")
+        return
+
+    if not _has_letter_or_digit(value):
+        raise ValueError(f"{label} должен содержать буквы или цифры.")
+    if _unsupported_chars(value, TEXT_PUNCTUATION):
+        raise ValueError(f"{label} содержит недопустимые символы.")
+
+
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -158,6 +203,11 @@ class EmployeeCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_dates(self) -> "EmployeeCreate":
+        for field_name in REQUIRED_EMPLOYEE_FIELDS:
+            if getattr(self, field_name) is None:
+                raise ValueError(f"{EMPLOYEE_TEXT_LABELS[field_name]} обязательно.")
+        for field_name in EMPLOYEE_TEXT_LABELS:
+            _validate_employee_text_field(field_name, getattr(self, field_name))
         if self.termination_date and self.termination_date < self.hire_date:
             raise ValueError("Дата увольнения не может быть раньше даты приема на работу.")
         return self
@@ -187,6 +237,14 @@ class EmployeePatch(BaseModel):
     def validate_salary(self) -> "EmployeePatch":
         if "salary" in self.model_fields_set and self.salary is None:
             raise ValueError("Зарплата обязательна.")
+        for field_name in REQUIRED_EMPLOYEE_FIELDS:
+            if field_name in self.model_fields_set and getattr(self, field_name) is None:
+                raise ValueError(f"{EMPLOYEE_TEXT_LABELS[field_name]} обязательно.")
+        for field_name in EMPLOYEE_TEXT_LABELS:
+            if field_name in self.model_fields_set:
+                _validate_employee_text_field(field_name, getattr(self, field_name))
+        if self.hire_date and self.termination_date and self.termination_date < self.hire_date:
+            raise ValueError("Дата увольнения не может быть раньше даты приема на работу.")
         return self
 
 

@@ -77,11 +77,7 @@ def create_export_operation(
 
 def _employee_rows(db: Session, cutoff: date | None) -> list[dict[str, Any]]:
     employees = list_employees(db, cutoff=cutoff, limit=10000)
-    return [
-        employee.model_dump(mode="json")
-        for employee in employees
-        if employee.status == "Работает" and employee.employment_type == "Штатный сотрудник"
-    ]
+    return [employee.model_dump(mode="json") for employee in employees]
 
 
 def _department_rows(db: Session) -> list[dict[str, Any]]:
