@@ -1,5 +1,7 @@
 # Excel Analyzer
 
+![System design](frontend/src/assets/sys_des.png)
+
 Приложение для импорта организационных данных из Excel, просмотра и редактирования сотрудников, ведения справочников и экспорта данных. Фронтенд написан на Next.js и TypeScript, бэкенд - на FastAPI. Основная база данных - PostgreSQL.
 
 ## Структура
@@ -9,10 +11,11 @@
 
 ## Запуск БД
 
-Убедитесь, что работает instance PostgresQL и есть пустая база данных под проект. Название бд нужно будет использоваться в .env файле, который вы должны создать в backend/.env. Для создания экземпляра бд можно использовать PGAdmin/DBeaver.
+Убедитесь, что работает instance PostgresQL и есть пустая база данных под проект. Название вашей бд нужно будет также прописать в .env файле, который вы должны создать в backend/.env. Для создания экземпляра бд можно использовать PGAdmin/DBeaver.
 
 ## Запуск backend и переменные окружения для backend
 
+В переменные окружения для backend, скопировать и переименовать your_password и your_db_name на свои (postgres - основной юзер):
 ```text
 DATABASE_URL=postgresql+psycopg://postgres:your_password@localhost:5432/your_db_name
 ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
